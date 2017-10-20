@@ -1,0 +1,50 @@
+version: '2'
+services:
+  proxy:
+    build: ./proxy
+    links:
+      - moodle:moodle
+    ports:
+      - 80:80
+      - 443:443
+    volumes:
+      - ./certs:/etc/nginx/certs:ro
+      - /etc/nginx/vhost.d
+      - /usr/share/nginx/html
+# nginx-proxyがDocker Remote APIを使えるようにする 
+# nginx-proxyはコンテナ起動・停止を検知すると、Nginxの設定ファイルを追加・削除、そして設定の読み込み処理を走らせます。
+# /var/run/docker.sockをマウントするとコンテナからDockerの操作が出来てしまうのでreadonly を指定
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+    restart: always
+
+#web　
+  moodle:
+    build: ./moodle/
+    ports:
+# schale コマンドでホストのポートは自動割当なので、
+# コンテナ側だけ指定する
+      - 80
+    links:
+      - db
+    volumes:
+# moodleのソースコード自体は共通にするため、ホストに配置し、マウントする (ro = read only)
+      - /var/www/moodle:/var/www/html:ro
+# moodleは実行時にファイルを生成するため、バランシングしたとき用に
+# 該当のデータはホストにマウントして共通で利用する
+      - /var/moodledata:/var/moodledata
+#共通設定は固定値
+    environment:
+        MOODLE_URL: https://localhost
+#環境変数は別ファイルで保存
+    env_file: moodle.env
+
+  db:
+    image: mysql:5.7.18
+    container_name: "mysql5.7"
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./mysql:/var/lib/mysql
+    env_file: mysql.env
+
+

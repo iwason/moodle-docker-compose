@@ -1,0 +1,4 @@
+mysql/
+certs/
+moodle.env
+mysql.env
